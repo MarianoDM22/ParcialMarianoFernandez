@@ -1,108 +1,103 @@
 package utn.demo.controller;
 
-
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
-import utn.demo.model.Comentarios;
 import utn.demo.model.Publicaciones;
 import utn.demo.model.Usuario;
-import utn.demo.repositories.ComentariosRepository;
+import utn.demo.model.UsuarioDto;
 import utn.demo.repositories.PublicacionesRepository;
 import utn.demo.repositories.UsuarioRepository;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
-@RequestMapping("/persona")
+@RequestMapping("/usuario")
 @RestController
-@EnableScheduling
 public class UsuarioController {
-
-    private static final String USER_NOT_FOUND = "No existe el usuario con el id: %s";
+    private static final String PERSON_NOT_FOUND = "User id not found: %s";
 
     @Autowired
     UsuarioRepository usuarioRepository;
 
     @Autowired
-    PublicacionesRepository publicacionesRepository;
+    PublicacionesRepository publicacionRepository;
 
-    @Autowired
-    ComentariosRepository comentariosRepository;
+    ModelMapper modelMapper = new ModelMapper();
 
-    //Adds
+    // ADD USUARIO
     @PostMapping("")
-    public void addUsuario(@RequestBody final Usuario usuario) {
+    public void addPublicacion(@RequestBody final Usuario p) {//averiguar q hace esto
+        usuarioRepository.save(p);
+    }
+
+    // ADD PUBLICACION
+    @PostMapping("/{idUsuario}/{idPublicacion}")
+    public void addPublicacion(@PathVariable final Integer idUsuario, @PathVariable final Integer idPublicacion){
+        Publicaciones p = publicacionRepository.findById(idPublicacion)
+                .orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST));
+        Usuario usuario = usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST, String.format(PERSON_NOT_FOUND,idUsuario)));
+
+        p.setUsuario(usuario);
+        usuario.getPublicaciones().add(p);
+        publicacionRepository.save(p);
         usuarioRepository.save(usuario);
     }
 
-    @PostMapping("")
-    public void addPublicacion(@RequestBody final Publicaciones publicacion) { publicacionesRepository.save(publicacion);}
+    // GET USUARIO
+    @GetMapping("")
+    public List<UsuarioDto> getAll() {
+        List<Usuario> usuarios = usuarioRepository.findAll();
+        return usuarios.stream()
+                .map(player -> convertToDto(player))
+                .collect(Collectors.toList());
+    }
 
-    @PostMapping("")
-    public void addComentario(@RequestBody final Comentarios comentario) { comentariosRepository.save(comentario);}
+    private UsuarioDto convertToDto(Usuario usuario) {
+        UsuarioDto usuarioDto = modelMapper.map(usuario, UsuarioDto.class);
+        return usuarioDto;
+    }
 
-    //Update
+    @GetMapping("/{id}")
+    public UsuarioDto getById(@PathVariable final Integer id){
+        return convertToDto(usuarioRepository
+                .findById(id).orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST, String.format(PERSON_NOT_FOUND,id))));
+    }
+
+    // UPDATE USUARIO
     @PutMapping(value = "/{id}")
     public ResponseEntity<?> updateUsuario(@PathVariable("id") Integer id, @RequestBody Usuario usuario) {
-        Usuario currentUser = usuarioRepository.findById(id).orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST, String.format(USER_NOT_FOUND,id)));
-        if (currentUser == null) {
-            return new ResponseEntity<>("No se puede modificar. El Usuario con el Id " + id + " no existe.",
+        Usuario currentUsuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST, String.format(PERSON_NOT_FOUND,id)));
+
+        if (currentUsuario == null) {
+            return new ResponseEntity<>("Unable to upate. Usuario with id " + id + " not found.",
                     HttpStatus.NOT_FOUND);
         }
 
-        currentUser.setNombre(usuario.getNombre());
-        currentUser.setApellido(usuario.getApellido());
-        usuarioRepository.save(currentUser);
-        return new ResponseEntity<Usuario>(currentUser, HttpStatus.NO_CONTENT);
+        currentUsuario.setNombre(usuario.getNombre());
+        currentUsuario.setApellido(usuario.getApellido());
+        currentUsuario.setBrowser(usuario.getBrowser());
+        usuarioRepository.save(currentUsuario);
+        return new ResponseEntity<Usuario>(currentUsuario, HttpStatus.NO_CONTENT);
     }
 
-    //Delete
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUserById(@PathVariable final Integer id){
-        Usuario usuario = usuarioRepository.findById(id).orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST, String.format(USER_NOT_FOUND,id)));
+    // DELETE USUARIO
+    @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)
+    public ResponseEntity<?> deleteUsuario(@PathVariable("id") Integer id) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST, String.format(PERSON_NOT_FOUND,id)));
+
         if (usuario == null) {
-            return new ResponseEntity<>("No se puede eliminar. El Usuario con el Id " + id + " no existe.",
+            return new ResponseEntity<>("Unable to delete. Usuario with id " + id + " not found.",
                     HttpStatus.NOT_FOUND);
         }
         usuarioRepository.deleteById(id);
         return new ResponseEntity<Usuario>(HttpStatus.NO_CONTENT);
     }
-
-    //Get usuarios
-    @GetMapping("/usuarios")
-    public List<Usuario> getAllUsuarios() {
-        return usuarioRepository.findAll();
-    }
-
-    //Get usuario especifico
-    @GetMapping("/usuarios/{id}")
-    public Usuario getUsuarioById(@PathVariable("id") Integer id) {
-            Usuario usuario = usuarioRepository.findById(id)
-                    .orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST, String.format(USER_NOT_FOUND,id)));
-            return usuario;
-    }
-
-
-    //Get publicaciones
-    @GetMapping("/usuarios/{id}/publicaciones")
-    public List<Publicaciones> getPublicacionesByUsuario(@PathVariable("id") Integer id) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new HttpClientErrorException(HttpStatus.BAD_REQUEST, String.format(USER_NOT_FOUND,id)));
-        List<Publicaciones> publicaciones = publicacionesRepository.findAllById(Collections.singleton(id));
-        return publicaciones;
-    }
-
-    //
-    @Scheduled(fixedRate = 50000)
-    public void deleteComentarios(){
-        usuarioRepository.deleteComentarioss();
-    }
-
 
 }

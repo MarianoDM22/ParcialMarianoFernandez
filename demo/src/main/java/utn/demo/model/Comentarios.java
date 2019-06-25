@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -21,13 +22,10 @@ public class Comentarios {
     private Integer id;
 
     private String descripcion;
-    private LocalDateTime fecha;
-    //private Usuario usuario;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "publicaciones_id", referencedColumnName = "id")
-    @JsonIgnore
-    private Publicaciones publicaciones;
+    @DateTimeFormat(pattern = "dd/mm/yyyy")
+    private LocalDateTime fecha;
+    private String usuario;
 
     @PrePersist
     public void setFecha() {
@@ -35,4 +33,9 @@ public class Comentarios {
             this.fecha = LocalDateTime.now();
         }
     }
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "publicaciones_id", referencedColumnName = "id")
+    @JsonIgnore
+    private Publicaciones publicaciones;
 }

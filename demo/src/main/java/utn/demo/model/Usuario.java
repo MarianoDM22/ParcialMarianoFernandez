@@ -29,12 +29,4 @@ public class Usuario {
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, mappedBy = "usuario")
     private List<Publicaciones> publicaciones;
 
-    //
-    @PrePersist
-    public ResponseEntity<String> listAllHeaders(@RequestHeader Map<String, String> headers){
-        headers.forEach((key, value)-> {
-            System.out.println(String.format("Header '%s' = %s", key, value));
-        });
-        return new ResponseEntity<String> (String.format(" Listed %s headers", headers.size()), HttpStatus.OK);
-    }
 }
